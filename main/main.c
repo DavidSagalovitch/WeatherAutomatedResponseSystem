@@ -1,32 +1,27 @@
-#include <stdio.h>
+#include "../motor/motor.h"  // Motor control functions
+#include "../led/led.h"    // LED blink functions
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "driver/gpio.h"
-
-// Define GPIO pin for LED
-#define LED_GPIO 2  // D2 corresponds to GPIO2
 
 void app_main(void)
 {
-    // Configure GPIO pin as output
-    gpio_reset_pin(LED_GPIO);
-    gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
+    // Initialize the motor
+    motor_init();
+
+    // Start the LED blinking task
+    xTaskCreate(led_blink, "LED Blink Task", 2048, NULL, 1, NULL);
 
     while (1) {
-        // Quick blink: 200ms ON, 200ms OFF
-        gpio_set_level(LED_GPIO, 1);  // Turn LED ON
-        printf("Quick Blink ON\n");
-        vTaskDelay(200 / portTICK_PERIOD_MS);  // Wait 200ms
-        gpio_set_level(LED_GPIO, 0);  // Turn LED OFF
-        printf("Quick Blink OFF\n");
-        vTaskDelay(200 / portTICK_PERIOD_MS);  // Wait 200ms
+        // Spin motor forward for 2 seconds
+        motor_spin_forward(256);  // Slow speed
+        vTaskDelay(pdMS_TO_TICKS(2000));
 
-        // Long blink: 1 second ON, 1 second OFF
-        gpio_set_level(LED_GPIO, 1);  // Turn LED ON
-        printf("Long Blink ON\n");
-        vTaskDelay(1000 / portTICK_PERIOD_MS);  // Wait 1 second
-        gpio_set_level(LED_GPIO, 0);  // Turn LED OFF
-        printf("Long Blink OFF\n");
-        vTaskDelay(1000 / portTICK_PERIOD_MS);  // Wait 1 second
+        // Spin motor reverse for 2 seconds
+        motor_spin_reverse(256);  // Slow speed
+        vTaskDelay(pdMS_TO_TICKS(2000));
+
+        // Stop motor for 1 second
+        motor_stop();
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
