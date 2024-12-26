@@ -7,7 +7,7 @@
 // GPIO definition for LED
 #define LED_GPIO 2  // LED connected to GPIO2
 
-void led_blink(void *pvParameters)
+void led_task(void *pvParameters)
 {
     // Configure LED GPIO as output
     gpio_reset_pin(LED_GPIO);

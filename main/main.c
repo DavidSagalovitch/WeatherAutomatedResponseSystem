@@ -1,27 +1,22 @@
 #include "../motor/motor.h"  // Motor control functions
 #include "../led/led.h"    // LED blink functions
+#include "../testIO/gpio_read.h"     // GPIO read functionality for switch
+#include "../testIO/gpio_write.h" // GPIO write functionality for switch
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 void app_main(void)
 {
-    // Initialize the motor
-    motor_init();
+    // Start the motor task
+    xTaskCreate(motor_task, "Motor Task", 4096, NULL, 1, NULL);
 
     // Start the LED blinking task
-    xTaskCreate(led_blink, "LED Blink Task", 2048, NULL, 1, NULL);
+    xTaskCreate(led_task, "LED Blink Task", 2048, NULL, 1, NULL);
 
-    while (1) {
-        // Spin motor forward for 2 seconds
-        motor_spin_forward(256);  // Slow speed
-        vTaskDelay(pdMS_TO_TICKS(2000));
+    // Start the GPIO read task (to monitor the switch)
+    xTaskCreate(gpio_read_task, "GPIO Read Task", 2048, NULL, 1, NULL);
 
-        // Spin motor reverse for 2 seconds
-        motor_spin_reverse(256);  // Slow speed
-        vTaskDelay(pdMS_TO_TICKS(2000));
+    // Start the GPIO write task (to simulate the switch output)
+    xTaskCreate(gpio_write_task, "GPIO Write Task", 2048, NULL, 1, NULL);
 
-        // Stop motor for 1 second
-        motor_stop();
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
 }

@@ -2,17 +2,7 @@
 #include <stdio.h>
 #include "driver/gpio.h"
 #include "driver/ledc.h"
-
-// PWM and GPIO definitions for motor
-#define MOTOR_PWM   16  // Motor PWM pin
-#define MOTOR_DIR   17  // Motor direction pin
-
-// PWM Configuration
-#define LEDC_TIMER      LEDC_TIMER_0
-#define LEDC_MODE       LEDC_LOW_SPEED_MODE
-#define LEDC_CHANNEL    LEDC_CHANNEL_0
-#define LEDC_DUTY_RES   LEDC_TIMER_10_BIT // 10-bit resolution (0-1023)
-#define LEDC_FREQUENCY  5000              // Frequency in Hz (5kHz)
+#include "../testIO/gpio_read.h"
 
 void motor_init(void)
 {
@@ -63,4 +53,22 @@ void motor_stop(void)
     ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, 0);  // Stop motor
     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
     printf("Motor stopped\n");
+}
+
+void motor_task(void *pvParameters)
+{
+    motor_init();
+
+    while (1) {
+        // Check the switch state via the `turn_on` variable
+        if (turn_on) {
+        // Spin motor forward for 2 seconds
+        motor_spin_forward(256);  // Slow speed
+
+        } else {
+            // If the switch is not connected (turn_on is false), stop the motor
+            motor_stop();
+            printf("Switch is OFF. Motor is stopped.\n");
+        }
+    }
 }
