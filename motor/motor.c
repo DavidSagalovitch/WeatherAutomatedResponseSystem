@@ -62,8 +62,8 @@ void motor_task(void *pvParameters)
     while (1) {
         // Check the switch state via the `turn_on` variable
         if (turn_on) {
-        // Spin motor forward for 2 seconds
-        motor_spin_forward(256);  // Slow speed
+
+        motor_spin_forward(256); 
 
         } else {
             // If the switch is not connected (turn_on is false), stop the motor
