@@ -48,7 +48,83 @@ uint8_t read_i2c(uint16_t reg) {
     return value;
 }
 
-spi_device_handle_t spi;  // SPI device handle
+void setup_camera_I2C(void) {
+    // Software reset
+    write_i2c(0x3008, 0x82);
+    vTaskDelay(pdMS_TO_TICKS(200));  // Wait for reset to complete
+
+    // Clock and power settings
+    write_i2c(0x3103, 0x93);  // Clock selection (external oscillator)
+    write_i2c(0x3011, 0x08);  // PLL settings for 24MHz input clock
+    write_i2c(0x3008, 0x42);  // Set power mode to normal
+    vTaskDelay(pdMS_TO_TICKS(100));  // Allow power mode to stabilize
+
+    // Set resolution to VGA (640x480)
+    write_i2c(0x3808, 0x02);  // VGA width high byte (640)
+    write_i2c(0x3809, 0x80);  // VGA width low byte
+    write_i2c(0x380A, 0x01);  // VGA height high byte (480)
+    write_i2c(0x380B, 0xE0);  // VGA height low byte
+
+    // Enable test pattern (optional for debugging purposes)
+    write_i2c(0x503D, 0x80);  // Enable color bar test pattern
+    write_i2c(0x503E, 0x00);  // Ensure proper test pattern setup (if required)
+
+    // Start streaming to activate the sensor
+    write_i2c(0x3008, 0x02);  // Start sensor streaming
+    vTaskDelay(pdMS_TO_TICKS(200));  // Allow sensor streaming to stabilize
+
+    /*
+    // Confirm sensor is detected
+    uint8_t vid = read_i2c(0x300A);  // Read Vendor ID
+    uint8_t pid = read_i2c(0x300B);  // Read Product ID
+    if (vid == 0x56 && pid == 0x42) {
+        ESP_LOGI(TAG, "OV5642 detected. VID: 0x%02X, PID: 0x%02X", vid, pid);
+    } else {
+        ESP_LOGE(TAG, "OV5642 not detected. VID: 0x%02X, PID: 0x%02X", vid, pid);
+    }
+    */
+}
+
+// SPI device handle
+spi_device_handle_t spi;
+
+// SPI Write Helper
+void write_spi(uint8_t reg, uint8_t value) {
+    uint8_t data[2] = {0x80 | reg, value};  // Set Bit[7] for write operation
+    spi_transaction_t trans = {
+        .length = 16,       // Total bits to transfer (2 bytes)
+        .tx_buffer = data,  // Pointer to data to transmit
+        .rx_buffer = NULL,  // No data expected to be received
+    };
+
+    esp_err_t ret = spi_device_transmit(spi, &trans);  // Perform SPI transaction
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to write SPI register 0x%02X: %s", reg, esp_err_to_name(ret));
+    } else {
+        ESP_LOGI(TAG, "Successfully wrote 0x%02X to SPI register 0x%02X", value, reg);
+    }
+}
+
+uint8_t read_spi(uint8_t reg) {
+    uint8_t tx_data[2] = {reg & 0x7F, 0x00};  // Clear Bit[7] for read operation; second byte is dummy
+    uint8_t rx_data[2] = {0x00, 0x00};       // Buffer to store received data
+
+    spi_transaction_t trans = {
+        .length = 16,        // Total bits to transfer (2 bytes)
+        .tx_buffer = tx_data, // Pointer to data to transmit
+        .rx_buffer = rx_data, // Pointer to buffer to receive data
+    };
+
+    esp_err_t ret = spi_device_transmit(spi, &trans);  // Perform SPI transaction
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to read SPI register 0x%02X: %s", reg, esp_err_to_name(ret));
+        return 0;
+    } else {
+        ESP_LOGI(TAG, "Successfully read 0x%02X from SPI register 0x%02X", rx_data[1], reg);
+    }
+
+    return rx_data[1];  // The second byte contains the received data
+}
 
 void setupSPI(void) {
     spi_bus_config_t buscfg = {
@@ -61,7 +137,7 @@ void setupSPI(void) {
     };
 
     spi_device_interface_config_t devcfg = {
-        .clock_speed_hz = 5 * 1000 * 1000,  // 5 MHz
+        .clock_speed_hz = 1 * 1000 * 1000,  // MHz
         .mode = 0,  // SPI mode 0
         .spics_io_num = CS_PIN,  // Chip select pin
         .queue_size = 7          // Transaction queue size
@@ -83,88 +159,87 @@ void setupSPI(void) {
     ESP_LOGI(TAG, "SPI initialized successfully.");
 }
 
-void setup_camera_I2C(void) {
-    write_i2c(0x3008, 0x82);  // Software reset
-    vTaskDelay(pdMS_TO_TICKS(200));
+void debugSPI(void) {
+    uint8_t value;
 
-    write_i2c(0x3103, 0x93);  // Clock selection
-    write_i2c(0x3011, 0x08);  // PLL settings for 24MHz
-    write_i2c(0x3008, 0x42);  // Set power mode
-    vTaskDelay(pdMS_TO_TICKS(100));
+    // Test writing and reading a known working register
+    write_spi(0x00, 0x55);
+    value = read_spi(0x00);
+    ESP_LOGI(TAG, "Test Register 0x00: 0x%02X", value);
 
-    // Set resolution (VGA)
-    write_i2c(0x3808, 0x02);  // VGA width (high byte)
-    write_i2c(0x3809, 0x80);  // VGA width (low byte)
-    write_i2c(0x380A, 0x01);  // VGA height (high byte)
-    write_i2c(0x380B, 0xE0);  // VGA height (low byte)
+    // Test writing and reading FIFO Control Register
+    write_spi(0x04, 0x20);
+    vTaskDelay(pdMS_TO_TICKS(10));
+    value = read_spi(0x04);
+    ESP_LOGI(TAG, "FIFO Control Register (0x04) after clearing: 0x%02X", value);
 
-    // Enable test pattern
-    write_i2c(0x503D, 0x80);  // Enable color bar test pattern
-    write_i2c(0x503e, 0x00);
+    write_spi(0x04, 0x10);
+    vTaskDelay(pdMS_TO_TICKS(10));
+    value = read_spi(0x04);
+    ESP_LOGI(TAG, "FIFO Control Register (0x04) after write pointer reset: 0x%02X", value);
 
-    // Start streaming
-    write_i2c(0x3008, 0x02);  // Start streaming
-    vTaskDelay(pdMS_TO_TICKS(200));
+    write_spi(0x04, 0x08);
+    vTaskDelay(pdMS_TO_TICKS(10));
+    value = read_spi(0x04);
+    ESP_LOGI(TAG, "FIFO Control Register (0x04) after read pointer reset: 0x%02X", value);
 
+    write_spi(0x04, 0x01);
+    vTaskDelay(pdMS_TO_TICKS(10));
+    value = read_spi(0x04);
+    ESP_LOGI(TAG, "FIFO Control Register (0x04) after enabling: 0x%02X", value);
 
-    /*
-    // Confirm sensor is detected
-    uint8_t vid = read_i2c(0x300A);  // Read Vendor ID
-    uint8_t pid = read_i2c(0x300B);  // Read Product ID
-    if (vid == 0x56 && pid == 0x42) {
-        ESP_LOGI(TAG, "OV5642 detected. VID: 0x%02X, PID: 0x%02X", vid, pid);
-    } else {
-        ESP_LOGE(TAG, "OV5642 not detected. VID: 0x%02X, PID: 0x%02X", vid, pid);
-    }
-    */
+    // Test reading FIFO Status Register
+    value = read_spi(0x41);
+    ESP_LOGI(TAG, "FIFO Status Register (0x41): 0x%02X", value);
 }
 
 void captureImage(void) {
-    // Configure FIFO
-    write_i2c(0x4202, 0x00);  // Disable FIFO
-    vTaskDelay(pdMS_TO_TICKS(10));
-    write_i2c(0x4202, 0x04);  // Clear FIFO
-    vTaskDelay(pdMS_TO_TICKS(10));
-    write_i2c(0x4202, 0x01);  // Enable FIFO
-    vTaskDelay(pdMS_TO_TICKS(100));  // Allow FIFO to populate
 
-    // Wait for FIFO to fill
-    uint8_t fifo_status = 0;
+    debugSPI();
+
+   // Clear FIFO pointers
+    write_spi(0x04, 0x10);  // Reset FIFO write pointer
+    write_spi(0x04, 0x20);  // Reset FIFO read pointer
+
+    // Enable FIFO mode
+    write_spi(0x03, 0x10);  // Enable FIFO mode (set Bit[4])
+
+    // Start capture
+    write_spi(0x04, 0x02);  // Start capture
+
+    // Wait for capture completion
+    uint8_t status = 0;
     for (int i = 0; i < 10; i++) {
-        fifo_status = read_i2c(0x4202);
-        if (fifo_status & 0x08) {  // Check FIFO_READY bit
-            ESP_LOGI(TAG, "Capture completed.");
+        status = read_spi(0x41);
+        if (status & 0x08) {  // FIFO write done flag
+            ESP_LOGI(TAG, "Image capture completed.");
             break;
         }
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
-    if (!(fifo_status & 0x08)) {
+    if (!(status & 0x08)) {
         ESP_LOGE(TAG, "Capture failed: FIFO not ready.");
-        //return;
+        return;
     }
 
-    // Read FIFO size
-    uint8_t size_high = read_i2c(0x4203);
-    uint8_t size_mid = read_i2c(0x4204);
-    uint8_t size_low = read_i2c(0x4205);
-    uint32_t fifo_size = (size_high << 16) | (size_mid << 8) | size_low;
-    ESP_LOGI(TAG, "Captured image size: %u bytes", (unsigned int) fifo_size);
+    // Get FIFO size
+    uint32_t size = (read_spi(0x44) << 16) | (read_spi(0x43) << 8) | read_spi(0x42);
+    ESP_LOGI(TAG, "Captured image size: %u bytes", (unsigned int) size);
 
-    // Read image data from FIFO via SPI
-    uint8_t buffer[256];  // Buffer for SPI reads
+    // Read data from FIFO
+    uint8_t buffer[256];
     uint32_t bytes_read = 0;
-
-    while (bytes_read < fifo_size) {
-        uint32_t chunk_size = (fifo_size - bytes_read > sizeof(buffer)) ? sizeof(buffer) : (fifo_size - bytes_read);
+    while (bytes_read < size) {
+        uint32_t chunk = (size - bytes_read > sizeof(buffer)) ? sizeof(buffer) : (size - bytes_read);
         spi_transaction_t trans = {
-            .length = chunk_size * 8, // Length in bits
+            .length = chunk * 8,  // Bits
             .rx_buffer = buffer
         };
         esp_err_t ret = spi_device_transmit(spi, &trans);
         if (ret == ESP_OK) {
-            ESP_LOGI(TAG, "Read %u bytes from FIFO.", (unsigned int) chunk_size);
-            bytes_read += chunk_size;
+            ESP_LOGI(TAG, "Read %u bytes from FIFO.", (unsigned int) chunk);
+            bytes_read += chunk;
         } else {
             ESP_LOGE(TAG, "SPI read error: %s", esp_err_to_name(ret));
             break;
