@@ -14,11 +14,11 @@ void sensors_run(void *pvParameters) {
     // Initialize SPI and set up the camera
     setupCamera();
 
-   // while (1) {
-   //     // Capture an image every 10 seconds
-   //     captureImage();
-  //      vTaskDelay(10000 / portTICK_PERIOD_MS);
-  //  }
+    while (1) {
+       //Capture an image every 10 seconds
+        captureImage();
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
+    }
       vTaskDelete(NULL); 
 
 }
