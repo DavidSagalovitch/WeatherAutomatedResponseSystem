@@ -6,8 +6,9 @@
 #define I2C_MASTER_SCL_IO 22          // GPIO number for I2C SCL
 #define I2C_MASTER_SDA_IO 21          // GPIO number for I2C SDA
 #define I2C_MASTER_NUM I2C_NUM_0      // I2C port number
-#define I2C_MASTER_FREQ_HZ 10000
+#define I2C_MASTER_FREQ_HZ 100000
 #define CAMERA_I2C_ADDR 0x3C          // OV5642 default I2C address
+#define LIDAR_I2C_ADDR 0x40           // LiDAR default I2C address
 #define TAG "I2CSetup"
 
 
@@ -47,7 +48,8 @@ void sendI2CCommand(uint8_t reg, uint8_t value) {
 }
 
 void i2cScanner(void) {
-    ESP_LOGI(TAG, "Scanning I2C bus...");
+    ESP_LOGI(TAG, "Scanning I2C Bus...");
+    int devices = 0;
     for (int addr = 1; addr < 127; addr++) {
         i2c_cmd_handle_t cmd = i2c_cmd_link_create();
         i2c_master_start(cmd);
@@ -55,10 +57,16 @@ void i2cScanner(void) {
         i2c_master_stop(cmd);
         esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(1000));
         i2c_cmd_link_delete(cmd);
-
+        ESP_LOGI(TAG, "Testing Address: 0x%02X", addr);
         if (ret == ESP_OK) {
+            devices++;
             ESP_LOGI(TAG, "Found I2C device at address: 0x%02X", addr);
-        }
+        } 
     }
-    ESP_LOGI(TAG, "I2C scan complete.");
+    if (devices == 0) {
+        ESP_LOGI(TAG, "NO I2C DEVICE FOUND");
+    } else {
+        ESP_LOGI(TAG, "%i I2C DEVICES FOUND", devices);
+    }
+    ESP_LOGI(TAG, "I2C Scan Complete.");
 }

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "../i2c/I2Csetup.h"
 #include "camera.h"
+#include "lidar.h"
 #include "sensors_main.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -12,13 +13,14 @@ void sensors_run(void *pvParameters) {
     i2cScanner();
 
     // Initialize SPI and set up the camera
-    setupCamera();
-
+    //setupCamera();
+    float distance;
     while (1) {
-       //Capture an image every 10 seconds
-        captureImage();
-        vTaskDelay(10000 / portTICK_PERIOD_MS);
+      // captureImage();
+      distance = read_distance();
+      if (distance >= 0) {
+          printf("Measured Distance: %.2f cm\n", distance);
+      }
+      vTaskDelay(pdMS_TO_TICKS(500));  // Wait for 500ms
     }
-      vTaskDelete(NULL); 
-
 }
