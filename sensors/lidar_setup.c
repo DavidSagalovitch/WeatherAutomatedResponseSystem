@@ -1,4 +1,6 @@
 #include "lidar.h"
+#include <math.h>
+#include <stdbool.h>
 #include "esp_log.h"
 #include "driver/i2c.h"
 
@@ -7,6 +9,9 @@
 #define REG_DISTANCE_UPPER 0x5E
 #define REG_DISTANCE_LOWER 0x5F
 #define REG_SHIFT 0x35
+
+#define SAMPLE_COUNT 10
+#define WATER_THRESHOLD 0.5
 
 #define TAG "LidarSetup"
 
@@ -40,27 +45,6 @@ esp_err_t i2c_read_register(uint8_t reg_addr, uint8_t *data) {
     return ret;
 }
 
-/*
-uint8_t read_i2c(uint16_t reg) {
-    uint8_t reg_addr[2] = {(reg >> 8) & 0xFF, reg & 0xFF};
-    uint8_t value = 0;
-
-    esp_err_t ret = i2c_master_write_to_device(I2C_MASTER_NUM, LIDAR_I2C_ADDR, reg_addr, sizeof(reg_addr), pdMS_TO_TICKS(1000));
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to write register address 0x%04X: %s", reg, esp_err_to_name(ret));
-        return 0;
-    }
-
-    ret = i2c_master_read_from_device(I2C_MASTER_NUM, LIDAR_I2C_ADDR, &value, 1, pdMS_TO_TICKS(1000));
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to read from register 0x%04X: %s", reg, esp_err_to_name(ret));
-        return 0;
-    }
-
-    ESP_LOGI(TAG, "Read 0x%02X from register 0x%04X", value, reg);
-    return value;
-}
-*/
 float read_distance() {
     uint8_t dist_upper, dist_lower, shift;
 
@@ -86,6 +70,30 @@ float read_distance() {
     return distance_cm;
 }
 
-void captureReflections(void) {
+bool detect_water() {
+    float distances[SAMPLE_COUNT];
+    float sum = 0, mean, variance = 0, stddev;
 
+    // Collect multiple distance readings
+    for (int i = 0; i < SAMPLE_COUNT; i++) {
+        distances[i] = read_distance();
+        //printf("Measured Distance: %.2f cm\n", distances[i]);
+        sum += distances[i];
+        vTaskDelay(pdMS_TO_TICKS(10)); // Small delay between readings
+    }
+
+    mean = sum / SAMPLE_COUNT;
+
+    // Compute variance
+    for (int i = 0; i < SAMPLE_COUNT; i++) {
+        variance += pow(distances[i] - mean, 2);
+    }
+    variance /= SAMPLE_COUNT;
+    stddev = sqrt(variance);
+    printf("STD DEV: %.2f\n", stddev);
+    // Check if variance exceeds threshold
+    if (stddev > WATER_THRESHOLD) {
+        return true;  // Water detected
+    }
+    return false;  // Dry windshield
 }
