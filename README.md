@@ -1,3 +1,10 @@
-app_main() in main.c used for creating tasks only
+# The Weather Automated Response System
 
-modify only the CMakeList.txt in the main subfolder to add any other files to the build
+## A CAPSTONE project by David Sagalovitch, Viktor Veljanovski, Cole Cadera, and Jackson Bell
+
+This plug-and-play solution allows for seamless integration of an automated windshield experience.
+
+## Features
+- Windshield Wipers
+- Defroster Control
+- Washer Fluid Spray
