@@ -89,7 +89,7 @@ bool detect_water() {
         variance += pow(distances[i] - mean, 2);
     }
     variance /= SAMPLE_COUNT;
-    stddev = sqrt(variance);
+        stddev = sqrt(variance);
     printf("STD DEV: %.2f\n", stddev);
     // Check if variance exceeds threshold
     if (stddev > WATER_THRESHOLD) {
