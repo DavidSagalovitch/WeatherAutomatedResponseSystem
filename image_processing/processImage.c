@@ -60,10 +60,29 @@ void detect_edges(uint8_t *image, uint8_t *edges, int width, int height) {
     }
 }
 
-// Count blobs using a simple connected components algorithm
+typedef struct {
+    int x;
+    int y;
+} Point;
+
 int count_blobs(uint8_t *edges, int width, int height) {
     int blob_count = 0;
-    uint8_t visited[WIDTH * HEIGHT] = {0};
+
+    // Allocate visited map dynamically
+    uint8_t *visited = (uint8_t*)calloc(width * height, sizeof(uint8_t));
+    if (!visited) {
+        printf("Memory allocation failed for visited[].\n");
+        return 0;
+    }
+
+    // Allocate initial queue size
+    int queue_capacity = 50000;  // Start small
+    Point *queue = (Point*)malloc(queue_capacity * sizeof(Point));
+    if (!queue) {
+        printf("Memory allocation failed for queue[].\n");
+        free(visited);
+        return 0;
+    }
 
     for (int y = 1; y < height - 1; y++) {
         for (int x = 1; x < width - 1; x++) {
@@ -73,25 +92,41 @@ int count_blobs(uint8_t *edges, int width, int height) {
                 // New blob found
                 blob_count++;
 
-                // Flood fill algorithm (iterative)
-                int stack[WIDTH * HEIGHT];
-                int stack_size = 0;
-                stack[stack_size++] = idx;
-
+                int queue_start = 0, queue_end = 0;
+                queue[queue_end++] = (Point){x, y};
                 int blob_size = 0;
-                while (stack_size > 0) {
-                    int current = stack[--stack_size];
-                    if (visited[current]) continue;
 
-                    visited[current] = 1;
+                while (queue_start < queue_end) {
+                    if (queue_end >= queue_capacity - 10) { 
+                        // 🔹 Dynamically resize queue if needed
+                        queue_capacity *= 2;
+                        queue = (Point*)realloc(queue, queue_capacity * sizeof(Point));
+                        if (!queue) {
+                            printf("Warning: Memory limit reached, stopping further processing.\n");
+                            break;  // Avoid freezing
+                        }
+                    }
+
+                    Point p = queue[queue_start++];
+                    int current_idx = p.y * width + p.x;
+
+                    if (visited[current_idx]) continue;
+                    visited[current_idx] = 1;
                     blob_size++;
 
-                    // Check 8 neighbors
-                    int neighbors[] = { -1, 1, -width, width, -width-1, -width+1, width-1, width+1 };
+                    // 8-Neighborhood Connectivity
+                    int dx[] = {-1, 1,  0,  0, -1, -1,  1,  1};
+                    int dy[] = { 0, 0, -1,  1, -1,  1, -1,  1};
+
                     for (int i = 0; i < 8; i++) {
-                        int neighbor_idx = current + neighbors[i];
-                        if (edges[neighbor_idx] == 255 && !visited[neighbor_idx]) {
-                            stack[stack_size++] = neighbor_idx;
+                        int nx = p.x + dx[i];
+                        int ny = p.y + dy[i];
+                        int neighbor_idx = ny * width + nx;
+
+                        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                            if (edges[neighbor_idx] == 255 && !visited[neighbor_idx]) {
+                                queue[queue_end++] = (Point){nx, ny};
+                            }
                         }
                     }
                 }
@@ -102,8 +137,13 @@ int count_blobs(uint8_t *edges, int width, int height) {
         }
     }
 
+    // Free allocated memory
+    free(visited);
+    free(queue);
+
     return blob_count;
 }
+
 
 // Blurriness detection using variance of Laplacian filter
 float measure_blurriness(uint8_t *image, int width, int height) {

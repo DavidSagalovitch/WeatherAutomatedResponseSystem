@@ -1,0 +1,5 @@
+gcc test_process_image.c processImage.c -o test_process_image -lm
+./test_process_image
+
+For debugging:
+gdb ./test_process_image
