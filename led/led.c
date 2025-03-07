@@ -25,9 +25,9 @@ void led_task(void *pvParameters)
         // Long blink: 1 second ON, 1 second OFF
         gpio_set_level(LED_GPIO, 1);
         printf("Long Blink ON\n");
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(2000));
         gpio_set_level(LED_GPIO, 0);
         printf("Long Blink OFF\n");
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(2000));
     }
 }

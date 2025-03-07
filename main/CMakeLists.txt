@@ -7,6 +7,7 @@ idf_component_register(
         "../testIO/gpio_read.c" 
         "../i2c/I2Csetup.c"
         "../sensors/camera_setup.c"
+        "../sensors/lidar_setup.c"
         "../sensors/sensors_main.c"
     INCLUDE_DIRS
         "."                # Include headers from the main folder
