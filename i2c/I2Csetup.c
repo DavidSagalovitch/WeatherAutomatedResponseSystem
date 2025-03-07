@@ -48,65 +48,6 @@ void sendI2CCommand(uint8_t reg, uint8_t value) {
 }
 
 void i2cScanner(void) {
-<<<<<<< HEAD
-    const int target_addrs[] = {0x3C}; // Target addresses to find
-    const size_t num_targets = sizeof(target_addrs) / sizeof(target_addrs[0]);
-    const int timeout_ms = 100;           // Timeout in milliseconds
-    const int scan_interval_ms = 500;      // Time between scans
-    int elapsed_time = 0;
-
-    ESP_LOGI(TAG, "Starting I2C bus scan...");
-
-    while (elapsed_time < timeout_ms) {
-        bool all_found = true;
-
-        // Scan the entire I2C bus and list detected devices
-        ESP_LOGI(TAG, "Scanning I2C bus...");
-        for (int addr = 1; addr < 127; addr++) {
-            i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-            i2c_master_start(cmd);
-            i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_WRITE, true);
-            i2c_master_stop(cmd);
-            esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(1000));
-            i2c_cmd_link_delete(cmd);
-
-            if (ret == ESP_OK) {
-                ESP_LOGI(TAG, "Found I2C device at address: 0x%02X", addr);
-            }
-        }
-        ESP_LOGI(TAG, "I2C scan complete.");
-
-        // Check if all target addresses are found
-        for (size_t i = 0; i < num_targets; i++) {
-            int target_addr = target_addrs[i];
-            i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-            i2c_master_start(cmd);
-            i2c_master_write_byte(cmd, (target_addr << 1) | I2C_MASTER_WRITE, true);
-            i2c_master_stop(cmd);
-            esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(1000));
-            i2c_cmd_link_delete(cmd);
-
-            if (ret != ESP_OK) {
-                ESP_LOGW(TAG, "Target I2C device not found at address: 0x%02X", target_addr);
-                all_found = false;
-            } else {
-                ESP_LOGI(TAG, "Target I2C device found at address: 0x%02X", target_addr);
-            }
-        }
-
-        // If all target addresses are found, exit the loop
-        if (all_found) {
-            ESP_LOGI(TAG, "All target I2C devices found. Exiting scan.");
-            return;
-        }
-
-        // Delay and increment elapsed time
-        vTaskDelay(pdMS_TO_TICKS(scan_interval_ms));
-        elapsed_time += scan_interval_ms;
-    }
-
-    ESP_LOGE(TAG, "Timeout reached. Not all target I2C devices were found.");
-=======
     ESP_LOGI(TAG, "Scanning I2C Bus...");
     int devices = 0;
     for (int addr = 1; addr < 127; addr++) {
@@ -128,5 +69,4 @@ void i2cScanner(void) {
         ESP_LOGI(TAG, "%i I2C DEVICES FOUND", devices);
     }
     ESP_LOGI(TAG, "I2C Scan Complete.");
->>>>>>> cc236440ee9d56500149a8fc04635edf0b806571
 }

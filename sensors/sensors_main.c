@@ -16,16 +16,12 @@ void sensors_run(void *pvParameters) {
 
     i2cScanner();
 
-<<<<<<< HEAD
     vTaskDelay(100);
 
+    // Initialize SPI and set up the camera
     setupCamera();
 
-=======
-    // Initialize SPI and set up the camera
-    //setupCamera();
     //float distance;
->>>>>>> cc236440ee9d56500149a8fc04635edf0b806571
     while (1) {
       /*
       captureImage();
