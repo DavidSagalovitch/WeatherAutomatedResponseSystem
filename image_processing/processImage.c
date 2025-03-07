@@ -1,18 +1,19 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdint.h>
-#include "../sensors/camera.h"
+#include <stdlib.h>
 #include "processImage.h"
 
 // Image Processing Parameters
-#define WIDTH  1920  // Image width (ESP32-CAM default)
-#define HEIGHT 1440  // Image height
+#define WIDTH  640  // Image width (ESP32-CAM default)
+#define HEIGHT 480  // Image height
 #define EDGE_THRESHOLD 50  // Threshold for edge detection
 #define BLOB_MIN_SIZE 10   // Minimum blob size to be considered a raindrop
 
 void process_image(camera_fb_t *fb) {
     uint8_t *grayscale_image = fb->buf;  // Use grayscale image
     uint8_t edges[WIDTH * HEIGHT] = {0};  // Store detected edges
+    printf("Starting image processing \n");
 
     // Step 1: Edge Detection (Calculate edge_count)
     detect_edges(grayscale_image, edges, WIDTH, HEIGHT);
