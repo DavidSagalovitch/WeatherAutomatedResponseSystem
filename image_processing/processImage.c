@@ -2,6 +2,7 @@
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <math.h>
 #include "processImage.h"
 
 // Image Processing Parameters
@@ -13,7 +14,6 @@
 void process_image(camera_fb_t *fb) {
     uint8_t *grayscale_image = fb->buf;  // Use grayscale image
     uint8_t edges[WIDTH * HEIGHT] = {0};  // Store detected edges
-    printf("Starting image processing \n");
 
     // Step 1: Edge Detection (Calculate edge_count)
     detect_edges(grayscale_image, edges, WIDTH, HEIGHT);
@@ -30,12 +30,14 @@ void process_image(camera_fb_t *fb) {
     // Step 3: Blurriness Detection
     float blur_level = measure_blurriness(grayscale_image, WIDTH, HEIGHT);
 
+    int is_day = detect_day_night(grayscale_image, WIDTH, HEIGHT);
+
     // Step 4: Estimate Rain Intensity
-    float rain_intensity = estimate_rain_intensity(edge_count, blob_count, blur_level);
+    float rain_intensity = estimate_rain_intensity(edge_count, blob_count, blur_level, is_day);
 
     // Print the result
-    printf("Edges: %d, Blobs: %d, Blur Level: %.2f, Estimated Rain Intensity: %.2f\n",
-           edge_count, blob_count, blur_level, rain_intensity);
+    printf("Time: %d, Edges: %d, Blobs: %d, Blur Level: %.2f, Estimated Rain Intensity: %.2f\n",
+        is_day, edge_count, blob_count, blur_level, rain_intensity);
 }
 
 
@@ -144,10 +146,10 @@ int count_blobs(uint8_t *edges, int width, int height) {
     return blob_count;
 }
 
-
-// Blurriness detection using variance of Laplacian filter
 float measure_blurriness(uint8_t *image, int width, int height) {
-    int sum = 0, sum_sq = 0, count = 0;
+    int64_t sum = 0;
+    int64_t sum_sq = 0;  // Use int64_t to prevent overflow
+    int count = 0;
 
     for (int y = 1; y < height - 1; y++) {
         for (int x = 1; x < width - 1; x++) {
@@ -159,25 +161,61 @@ float measure_blurriness(uint8_t *image, int width, int height) {
                             - image[idx - width] - image[idx + width];
 
             sum += laplacian;
-            sum_sq += laplacian * laplacian;
+            sum_sq += (int64_t)laplacian * laplacian;  // Prevent overflow
             count++;
         }
     }
 
-    // Variance of Laplacian is a common blur metric
-    float mean = sum / (float)count;
-    float variance = (sum_sq / (float)count) - (mean * mean);
+    // Prevent division by zero
+    if (count == 0) return 0;
+
+    // Convert to double for higher precision
+    double mean = sum / (double)count;
+    double variance = (sum_sq / (double)count) - (mean * mean);
+
+    // If variance is negative due to precision errors, take absolute value
+    return (float)fabs(variance);
+}
+
+// Function to determine if the scene is day or night
+int detect_day_night(uint8_t *image, int width, int height) {
+    int edge_count = 0;
+    int brightness_sum = 0;
     
-    return variance;
+    // Loop through the image
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int idx = y * width + x;
+            brightness_sum += image[idx];  // Sum pixel brightness (0-255)
+        }
+    }
+
+    // Calculate average brightness
+    float avg_brightness = brightness_sum / (float)(width * height);
+
+    // Heuristic: If brightness is low, assume it's night
+    if (avg_brightness < 50) {
+        return 0;  // Night scene
+    } else {
+        return 1;  // Day scene
+    }
 }
 
-// Compute rain intensity based on detected features
-float estimate_rain_intensity(int edge_count, int blob_count, float blur_level) {
-    // Normalize values (assuming max values)
-    float edge_factor = edge_count / 1000.0;  // Normalize by max edge count
-    float blob_factor = blob_count / 100.0;   // Normalize by max blob count
-    float blur_factor = blur_level / 100.0;   // Normalize blur level
-
-    // Weighted sum (weights can be adjusted)
-    return (0.5 * edge_factor) + (0.3 * blob_factor) + (0.2 * blur_factor);
-}
+float estimate_rain_intensity(int edge_count, int blob_count, float blur_level, int is_day) {
+        // Normalize features
+        float blob_factor = log(1 + blob_count) / log(1000.0);
+        float blur_factor = log(1 + fabs(blur_level)) / log(50000.0);
+    
+        // Use simple weight rules:
+        float intensity = is_day ? (blob_factor * 1.0) : (blur_factor * 1.0);
+    
+        // Scale to 0-100 range
+        intensity *= 50;
+    
+        // Ensure within bounds
+        if (intensity > 100) intensity = 100;
+        if (intensity < 0) intensity = 0;
+    
+        return intensity;
+    }
+    

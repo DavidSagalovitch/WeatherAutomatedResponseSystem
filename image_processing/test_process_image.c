@@ -17,8 +17,14 @@ int main() {
     // List of test images
     const char *test_images[] = {
         "samples/clearday.raw",
-        "samplesclearnight.raw",
+        "samples/clearday2.raw",
+        "samples/clearnight.raw",
+        "samples/clearnight2.raw",
         "samples/rain1.raw",
+        "samples/rainday.raw",
+        "samples/rainday3.raw",
+        "samples/rainevening2.raw",
+        "samples/lightrainnight.raw",
     };
 
     int num_files = sizeof(test_images) / sizeof(test_images[0]);

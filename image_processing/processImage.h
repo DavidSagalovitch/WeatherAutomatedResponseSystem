@@ -14,4 +14,5 @@ void process_image(camera_fb_t *fb);
 void detect_edges(uint8_t *image, uint8_t *edges, int width, int height);
 int count_blobs(uint8_t *edges, int width, int height);
 float measure_blurriness(uint8_t *image, int width, int height);
-float estimate_rain_intensity(int edge_count, int blob_count, float blur_level);
+float estimate_rain_intensity(int edge_count, int blob_count, float blur_level, int is_day);
+int detect_day_night(uint8_t *image, int width, int height);
