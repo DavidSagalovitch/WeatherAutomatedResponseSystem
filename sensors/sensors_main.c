@@ -4,14 +4,19 @@
 #include "sensors_main.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "driver/gpio.h"
+
 
 void sensors_run(void *pvParameters) {
-    // Initialize I2C for camera configuration
+
     setupI2C();
+
+    vTaskDelay(100);
 
     i2cScanner();
 
-    // Initialize SPI and set up the camera
+    vTaskDelay(100);
+
     setupCamera();
 
     while (1) {

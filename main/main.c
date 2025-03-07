@@ -12,7 +12,7 @@ void app_main(void)
     //xTaskCreate(motor_task, "Motor Task", 4096, NULL, 1, NULL);
 
     // Start the LED blinking task
-    xTaskCreate(led_task, "LED Blink Task", 2048, NULL, 1, NULL);
+    //xTaskCreate(led_task, "LED Blink Task", 2048, NULL, 1, NULL);
 
     // Start the GPIO read task (to monitor the switch)
     //xTaskCreate(gpio_read_task, "GPIO Read Task", 2048, NULL, 1, NULL);
