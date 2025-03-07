@@ -16,9 +16,9 @@ void run_multiple_tests(const char *filenames[], int num_files);
 int main() {
     // List of test images
     const char *test_images[] = {
-        "clearday.raw",
-        "clearnight.raw",
-        "rain1.raw",
+        "samples/clearday.raw",
+        "samplesclearnight.raw",
+        "samples/rain1.raw",
     };
 
     int num_files = sizeof(test_images) / sizeof(test_images[0]);
