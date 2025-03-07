@@ -30,14 +30,14 @@ void process_image(camera_fb_t *fb) {
     // Step 3: Blurriness Detection
     float blur_level = measure_blurriness(grayscale_image, WIDTH, HEIGHT);
 
-    int is_day = detect_day_night(grayscale_image, WIDTH, HEIGHT);
+    int brightness = detect_brightness(grayscale_image, WIDTH, HEIGHT);
 
     // Step 4: Estimate Rain Intensity
-    float rain_intensity = estimate_rain_intensity(edge_count, blob_count, blur_level, is_day);
+    float rain_intensity = estimate_rain_intensity(edge_count, blob_count, blur_level, brightness);
 
     // Print the result
-    printf("Time: %d, Edges: %d, Blobs: %d, Blur Level: %.2f, Estimated Rain Intensity: %.2f\n",
-        is_day, edge_count, blob_count, blur_level, rain_intensity);
+    printf("Brightness: %d, Edges: %d, Blobs: %d, Blur Level: %.2f, Estimated Rain Intensity: %.2f\n",
+        brightness, edge_count, blob_count, blur_level, rain_intensity);
 }
 
 
@@ -178,7 +178,7 @@ float measure_blurriness(uint8_t *image, int width, int height) {
 }
 
 // Function to determine if the scene is day or night
-int detect_day_night(uint8_t *image, int width, int height) {
+int detect_brightness(uint8_t *image, int width, int height) {
     int edge_count = 0;
     int brightness_sum = 0;
     
@@ -193,29 +193,30 @@ int detect_day_night(uint8_t *image, int width, int height) {
     // Calculate average brightness
     float avg_brightness = brightness_sum / (float)(width * height);
 
-    // Heuristic: If brightness is low, assume it's night
-    if (avg_brightness < 50) {
-        return 0;  // Night scene
-    } else {
-        return 1;  // Day scene
-    }
+    return avg_brightness;
 }
 
-float estimate_rain_intensity(int edge_count, int blob_count, float blur_level, int is_day) {
-        // Normalize features
-        float blob_factor = log(1 + blob_count) / log(1000.0);
-        float blur_factor = log(1 + fabs(blur_level)) / log(50000.0);
-    
-        // Use simple weight rules:
-        float intensity = is_day ? (blob_factor * 1.0) : (blur_factor * 1.0);
-    
-        // Scale to 0-100 range
-        intensity *= 50;
-    
-        // Ensure within bounds
-        if (intensity > 100) intensity = 100;
-        if (intensity < 0) intensity = 0;
-    
-        return intensity;
-    }
-    
+float estimate_rain_intensity(int edge_count, int blob_count, float blur_level, int brightness) {
+    // Normalize features
+    float blob_factor = log(1 + blob_count) / log(1000.0);
+    float blur_factor = log(1 + fabs(blur_level)) / log(50000.0);
+
+    // Normalize brightness to range [0,1] (assuming 0-255 scale)
+    float brightness_weight = brightness / 255.0;  
+
+    // Use brightness as a smooth weighting factor
+    float blob_weight = brightness_weight;          // More brightness → blobs matter more
+    float blur_weight = 1.0 - brightness_weight;    // Less brightness → blur matters more
+
+    // Compute intensity
+    float intensity = (blob_weight * blob_count/100) + (blur_weight * blur_factor/1000);
+
+    // Scale to 0-100 range
+    intensity *= 50;
+
+    // Ensure within bounds
+    if (intensity > 100) intensity = 100;
+    if (intensity < 0) intensity = 0;
+
+    return intensity;
+}
