@@ -8,8 +8,12 @@
 #include "driver/gpio.h"
 
 
-void sensors_run(void *pvParameters) {
 
+
+volatile uint16_t whiper_speed_ms = 0;
+bool rain_detected = false;
+
+void sensors_run(void *pvParameters) {
     setupI2C();
 
     vTaskDelay(100);
@@ -33,8 +37,12 @@ void sensors_run(void *pvParameters) {
       */
       if (detect_water()) {
         printf("Water detected on windshield!\n");
+        rain_detected = true;
+        whiper_speed_ms = 1000;
       } else {
         printf("Windshield is dry.\n");
+        rain_detected = false;
+        whiper_speed_ms = 0;
       }
       vTaskDelay(pdMS_TO_TICKS(100));  // Check every half second
     }

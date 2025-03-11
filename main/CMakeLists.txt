@@ -9,6 +9,7 @@ idf_component_register(
         "../sensors/camera_setup.c"
         "../sensors/lidar_setup.c"
         "../sensors/sensors_main.c"
+        "../image_processing/processimage.c"
     INCLUDE_DIRS
         "."                # Include headers from the main folder
         "../motor"         # Include headers from the motor folder
@@ -16,4 +17,5 @@ idf_component_register(
         "../testIO"
         "../i2c"
         "../sensors"
+        "../image_processing"
 )
