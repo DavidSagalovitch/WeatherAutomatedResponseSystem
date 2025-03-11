@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h> 
 #include "processImage.h"
 
 
@@ -42,20 +43,30 @@ void run_multiple_tests(const char *filenames[], int num_files) {
         printf("Processing Image: %s\n", filenames[i]);
         printf("====================\n");
 
-        // Load RAW image
-        uint8_t *grayscale_image = load_raw_image(filenames[i], IMAGE_WIDTH, IMAGE_HEIGHT);
-        if (!grayscale_image) {
-            printf("Failed to load image: %s\n", filenames[i]);
-            continue;  // Skip to next image
-        }
+    // Load RAW image
+    uint8_t *grayscale_image = load_raw_image(filenames[i], IMAGE_WIDTH, IMAGE_HEIGHT);
+    if (!grayscale_image) {
+        printf("Failed to load image: %s\n", filenames[i]);
+        continue;  // Skip to next image
+    }
 
-        // Create mock camera framebuffer struct
-        uint8_t *buffer;;
-        // Process the image
-        process_image(&buffer);
+    // Allocate buffer
+    uint8_t *buffer = (uint8_t *)malloc(IMAGE_WIDTH * IMAGE_HEIGHT);
+    if (!buffer) {
+        printf("Failed to allocate buffer memory\n");
+        free(grayscale_image);  // Clean up before skipping
+        continue;
+    }
 
-        // Free allocated memory
-        free(grayscale_image);
+    // Copy grayscale image data into buffer
+    memcpy(buffer, grayscale_image, IMAGE_WIDTH * IMAGE_HEIGHT);
+
+    // Process the image
+    process_image(buffer);
+
+    // Free allocated memory
+    free(grayscale_image);
+    free(buffer); 
     }
 }
 
