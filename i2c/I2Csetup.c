@@ -64,9 +64,9 @@ void i2cScanner(void) {
         } 
     }
     if (devices == 0) {
-        ESP_LOGI(TAG, "NO I2C DEVICE FOUND");
+        ESP_LOGE(TAG, "NO I2C DEVICE FOUND");
     } else {
-        ESP_LOGI(TAG, "%i I2C DEVICES FOUND", devices);
+        ESP_LOGI(TAG, "%i I2C DEVICE(S) FOUND", devices);
     }
     ESP_LOGI(TAG, "I2C Scan Complete.");
 }
