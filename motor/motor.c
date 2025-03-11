@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include "driver/gpio.h"
 #include "driver/ledc.h"
-#include "../testIO/gpio_read.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "../sensors/sensors_main.h"
 
 void motor_init(void)
 {
@@ -58,17 +60,31 @@ void motor_stop(void)
 void motor_task(void *pvParameters)
 {
     motor_init();
-
     while (1) {
-        // Check the switch state via the `turn_on` variable
-        if (turn_on) {
+        if (rain_detected){
+            if (whiper_speed_ms < 116) {
+                whiper_speed_ms = 116; // Prevent overspeeding
+            }
 
-        motor_spin_forward(256); 
+            int speed = (256 * 116) / whiper_speed_ms; // Scale speed based on desired time
 
-        } else {
-            // If the switch is not connected (turn_on is false), stop the motor
+            // Ensure speed does not exceed maximum limit
+            if (speed > 256) {
+                speed = 256;
+            }
+
+            printf("Setting motor speed to %d for 180-degree rotation in %d ms\n", speed, whiper_speed_ms);
+
+            // Spin left (reverse) for 180°
+            motor_spin_reverse(speed);
+            vTaskDelay(pdMS_TO_TICKS(whiper_speed_ms));
             motor_stop();
-            printf("Switch is OFF. Motor is stopped.\n");
+            vTaskDelay(pdMS_TO_TICKS(500)); // Small delay before reversing
+
+            // Spin right (forward) for 180°
+            motor_spin_forward(speed);
+            vTaskDelay(pdMS_TO_TICKS(whiper_speed_ms));
+            motor_stop();
         }
     }
 }

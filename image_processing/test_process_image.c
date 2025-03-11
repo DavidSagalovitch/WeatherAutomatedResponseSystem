@@ -50,14 +50,9 @@ void run_multiple_tests(const char *filenames[], int num_files) {
         }
 
         // Create mock camera framebuffer struct
-        camera_fb_t fb;
-        fb.buf = grayscale_image;
-        fb.len = IMAGE_WIDTH * IMAGE_HEIGHT;
-        fb.width = IMAGE_WIDTH;
-        fb.height = IMAGE_HEIGHT;
-
+        uint8_t *buffer;;
         // Process the image
-        process_image(&fb);
+        process_image(&buffer);
 
         // Free allocated memory
         free(grayscale_image);
