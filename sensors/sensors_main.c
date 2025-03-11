@@ -7,9 +7,6 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 
-
-
-
 volatile uint16_t whiper_speed_ms = 0;
 bool rain_detected = false;
 
@@ -27,8 +24,9 @@ void sensors_run(void *pvParameters) {
 
     //float distance;
     while (1) {
-      /*
       captureImage();
+
+      /*
       distance = read_distance();
       if (distance >= 0) {
           printf("Measured Distance: %.2f cm\n", distance);
