@@ -11,7 +11,7 @@
 #define EDGE_THRESHOLD 50  // Threshold for edge detection
 #define BLOB_MIN_SIZE 15   // Minimum blob size to be considered a raindrop
 
-void process_image(uint8_t * buffer) {
+float process_image(uint8_t * buffer) {
     uint8_t *grayscale_image = buffer;  // Use grayscale image
     uint8_t edges[WIDTH * HEIGHT] = {0};  // Store detected edges
 
@@ -38,6 +38,8 @@ void process_image(uint8_t * buffer) {
     // Print the result
     printf("Brightness: %d, Edges: %d, Blobs: %d, Blur Level: %.2f, Estimated Rain Intensity: %.2f\n",
         brightness, edge_count, blob_count, blur_level, rain_intensity);
+
+    return (rain_intensity);
 }
 
 

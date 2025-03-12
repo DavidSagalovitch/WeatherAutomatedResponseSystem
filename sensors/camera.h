@@ -35,7 +35,12 @@
 
 
 void setupCamera(void);
+<<<<<<< HEAD
 void captureImage(void);
 void setupSPI(void);
 void reset_camera_via_spi(void);
+=======
+float captureImage(void);
+
+>>>>>>> ef14cc9bcbb9d43445e0c362777148fb03e13d6c
 #endif // CAMERA_SETUP_H

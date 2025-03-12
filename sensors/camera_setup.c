@@ -3,6 +3,7 @@
 #include "esp_log.h"
 #include "driver/i2c.h"
 #include "ov5642_regs.h"
+#include "../image_processing/processImage.h"
 
 
 
@@ -48,51 +49,34 @@ uint8_t read_i2c(uint16_t reg) {
 
 
 void setup_camera_I2C(void) {
-    /*
-    write_i2c(0x3818, 0x81); // Enable JPEG output format
+    ESP_LOGI(TAG, "Initializing OV5642 camera for 640x480 RAW output...");
 
-    for (int i = 0; ov5642_320x240[i].reg != 0xFFFF; i++) {
-            write_i2c(ov5642_320x240[i].reg, ov5642_320x240[i].val);
-            ESP_LOGI(TAG, "Wrote 0x%02X to register 0x%04X", ov5642_320x240[i].val, ov5642_320x240[i].reg);
-            vTaskDelay(pdMS_TO_TICKS(10)); // Optional delay for stability
-        }
-    ESP_LOGI(TAG, "Camera initialization complete.");
+    // Reset sensor
+    write_i2c(0x3008, 0x80);  
+    vTaskDelay(pdMS_TO_TICKS(200));
 
-    // Start streaming to activate the sensor
-    write_i2c(0x3008, 0x02);  // Start sensor streaming
-    vTaskDelay(pdMS_TO_TICKS(200));  // Allow sensor streaming to stabilize
-    */
-   
-   // Reset all registers to default
-   write_i2c(0x3008, 0x80);  // Soft reset
-   vTaskDelay(pdMS_TO_TICKS(100));
-   
-   // Set to JPEG output mode
-   write_i2c(0x3818, 0xA8);  // Enable JPEG output format and YUV422
-   write_i2c(0x3035, 0x11);  // PLL settings
-   write_i2c(0x3036, 0x69);  // PLL multiplier
-   write_i2c(0x3C07, 0x07);  // Enable color bar test pattern
-   
-   // Configure more registers if needed based on your datasheet
-   
-   // Apply the resolution settings
-   for (int i = 0; ov5642_320x240[i].reg != 0xFFFF; i++) {
-       write_i2c(ov5642_320x240[i].reg, ov5642_320x240[i].val);
-       vTaskDelay(pdMS_TO_TICKS(10));
-   }
-   
-   // Start streaming
-   write_i2c(0x3008, 0x02);
-   vTaskDelay(pdMS_TO_TICKS(200));
-   // Confirm sensor is detected
-   uint8_t vid = read_i2c(0x300A);  // Read Vendor ID
-   uint8_t pid = read_i2c(0x300B);  // Read Product ID
-   if (vid == 0x56 && pid == 0x42) {
-       ESP_LOGI(TAG, "OV5642 detected. VID: 0x%02X, PID: 0x%02X", vid, pid);
-   } else {
-       ESP_LOGE(TAG, "OV5642 not detected. VID: 0x%02X, PID: 0x%02X", vid, pid);
-   }
-   ESP_LOGI(TAG, "Camera I2C setup completed");
+    // Set sensor to RAW mode
+    write_i2c(0x3818, 0x81); // Enable RAW output
+
+    // Configure resolution to 640x480
+    for (int i = 0; OV5642_640x480_RAW[i].reg != 0xFFFF; i++) {
+        write_i2c(OV5642_640x480_RAW[i].reg, OV5642_640x480_RAW[i].val);
+        ESP_LOGI(TAG, "Wrote 0x%02X to register 0x%04X", OV5642_640x480_RAW[i].val, OV5642_640x480_RAW[i].reg);
+        vTaskDelay(pdMS_TO_TICKS(10)); // Delay for stability
+    }
+
+    // Start streaming
+    write_i2c(0x3008, 0x02);  // Power on and start streaming
+    vTaskDelay(pdMS_TO_TICKS(200));
+
+    // Confirm sensor is detected
+    uint8_t vid = read_i2c(0x300A);
+    uint8_t pid = read_i2c(0x300B);
+    if (vid == 0x56 && pid == 0x42) {
+        ESP_LOGI(TAG, "OV5642 detected. VID: 0x%02X, PID: 0x%02X", vid, pid);
+    } else {
+        ESP_LOGE(TAG, "OV5642 not detected. VID: 0x%02X, PID: 0x%02X", vid, pid);
+    }
 }
 
 // SPI device handle
@@ -146,22 +130,21 @@ void setupSPI(void) {
         .mosi_io_num = MOSI_PIN,
         .miso_io_num = MISO_PIN,
         .sclk_io_num = SCLK_PIN,
-        .quadwp_io_num = -1,  // Not used
-        .quadhd_io_num = -1,  // Not used
-        .max_transfer_sz = 4096  // Maximum transfer size in bytes
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = 4096
     };
 
     spi_device_interface_config_t devcfg = {
-        .clock_speed_hz = 1 * 1000 * 1000,  // MHz
-        .mode = 0,               // SPI mode 0
-        .spics_io_num = CS_PIN,  // Chip select pin
-        .queue_size = 7          // Transaction queue size
+        .clock_speed_hz = 4 * 1000 * 1000,  // Set to 4 MHz
+        .mode = 0,  
+        .spics_io_num = CS_PIN,
+        .queue_size = 7
     };
 
-    // Initialize SPI bus
     esp_err_t ret = spi_bus_initialize(HSPI_HOST, &buscfg, SPI_DMA_CH_AUTO);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to initialize SPI bus: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "SPI bus initialization failed: %s", esp_err_to_name(ret));
         return;
     }
 
@@ -172,7 +155,8 @@ void setupSPI(void) {
     }
 
     ESP_LOGI(TAG, "SPI initialized successfully.");
-
+    
+    // Configure CPLD for VSYNC handling
     write_spi(0x07, 0x80);  // Reset CPLD
     vTaskDelay(pdMS_TO_TICKS(100));
     write_spi(0x07, 0x00);  // Exit reset
@@ -251,81 +235,88 @@ void reset_camera_via_spi(void) {
     ESP_LOGI(TAG, "Camera reset sequence via SPI completed.");
 }
 
-void captureImage(void) {
-    reset_camera_via_spi();
-    debugSPI();
-    
-    // Start single frame capture
-    write_spi(ARDUCHIP_FRAMES, 0x00); // 0x00 + 1 FRAMES
-    vTaskDelay(pdMS_TO_TICKS(100));
-    write_spi(ARDUCHIP_FIFO, FIFO_CLEAR_MASK); // CLEAR FIFO WRITE DONE FLAG
-    vTaskDelay(pdMS_TO_TICKS(100));
-    write_spi(ARDUCHIP_FIFO, FIFO_START_MASK); // START CAPTURE
-    
-    // Wait for capture complete
-    ESP_LOGI(TAG, "Waiting for image capture...");
-    vTaskDelay(pdMS_TO_TICKS(100));
-    uint8_t status = 0;
-    uint32_t timeout = 20;  // Increased timeout
-    
-    for (uint32_t i = 0; i < timeout; i++) {
-        status = read_spi(0x45);
-        ESP_LOGI(TAG, "FIFO Status (0x41): 0x%02X", (unsigned int) status);
-        
-        if (status & 0x08) {
-            ESP_LOGI(TAG, "Image capture completed after %u attempts", (unsigned int) i + 1);
-            break;
-        }
-        vTaskDelay(pdMS_TO_TICKS(100));
+float captureImage(void) {
+    ESP_LOGI(TAG, "Starting image capture...");
+
+    // Reset and start sensor
+    write_spi(ARDUCHIP_GPIO_WRITE, GPIO_RESET_MASK);  // Assert sensor reset
+    vTaskDelay(pdMS_TO_TICKS(200));
+    write_spi(ARDUCHIP_GPIO_WRITE, 0x00);  // Deassert sensor reset
+    vTaskDelay(pdMS_TO_TICKS(200));
+
+    // Enable FIFO mode
+    write_spi(GPIO_DIRECTION, 0x07);
+    write_spi(0x03, 0x10);
+
+    // Reset FIFO
+    write_spi(ARDUCHIP_FIFO, 0x20);
+    write_spi(ARDUCHIP_FIFO, 0x10);
+    write_spi(ARDUCHIP_FIFO, 0x08);
+    write_spi(ARDUCHIP_FIFO, 0x01);
+
+    // Start capture
+    write_spi(ARDUCHIP_FRAMES, 0x01);
+    write_spi(ARDUCHIP_FIFO, 0x02);
+    vTaskDelay(pdMS_TO_TICKS(500));
+
+    // Wait for capture completion
+    uint8_t status = read_spi(CAM_WR_FIFO_DONE);
+    if (!(status & 0x08)) {
+        ESP_LOGE(TAG, "Capture failed: FIFO not ready.");
+        return 0;
     }
 
     // Improved FIFO read method
-    uint8_t s1 = read_spi(0x44);
-    uint8_t s2 = read_spi(0x43);
-    uint8_t s3 = read_spi(0x42);
+    uint8_t s1 = read_spi(FIFO_SIZE3);
+    uint8_t s2 = read_spi(FIFO_SIZE2);
+    uint8_t s3 = read_spi(FIFO_SIZE1);
     uint32_t size = (s1 << 16) | (s2 << 8) | s3;
     ESP_LOGI(TAG, "Size bytes: %02X %02X %02X -> %u bytes", (unsigned int)s1, (unsigned int)s2, (unsigned int)s3, (unsigned int)size);
 
-    if (size > 0 && size < 100000) {  // Sanity check on size
-        uint8_t *buffer = malloc(size);
-        if (buffer) {
-            // Select FIFO read register
-            write_spi(BURST_FIFO_READ, 0x00);
-            vTaskDelay(pdMS_TO_TICKS(10));
-            
-            // Read the data byte by byte
-            for (uint32_t i = 0; i < size; i++) {
-                // Setup a read transaction
-                spi_transaction_t trans = {
-                    .length = 8,  // 8 bits (1 byte)
-                    .flags = SPI_TRANS_USE_RXDATA,
-                    .rx_data = {0}
-                };
-                
-                if (spi_device_transmit(spi, &trans) == ESP_OK) {
-                    buffer[i] = trans.rx_data[0];
-                    if (i < 32 || i > size - 32) {  // Print first and last 32 bytes
-                        printf("%02X ", buffer[i]);
-                        if ((i + 1) % 16 == 0)
-                            printf("\n");
-                    }
-                } else {
-                    ESP_LOGE(TAG, "SPI read error at byte %u", (unsigned int)i);
-                    break;
-                }
-            }
-            printf("\n");
-            free(buffer);
-        } else {
-            ESP_LOGE(TAG, "Failed to allocate memory for image data");
-        }
-    } else {
-        ESP_LOGE(TAG, "Invalid image size: %u bytes", (unsigned int)size);
+    if (size < 1000) {  
+        ESP_LOGE(TAG, "Invalid image size. Capture may have failed.");
+        return 0;
     }
+
+    // Allocate memory for image
+    uint8_t *image_data = (uint8_t *)malloc(size);
+    if (!image_data) {
+        ESP_LOGE(TAG, "Failed to allocate memory for image.");
+        return 0;
+    }
+
+    // Read FIFO data into buffer
+    uint32_t bytes_read = 0;
+    while (bytes_read < size) {
+        uint32_t chunk = (size - bytes_read > 256) ? 256 : (size - bytes_read);
+        spi_transaction_t trans = {
+            .length = chunk * 8,
+            .rx_buffer = &image_data[bytes_read]
+        };
+
+        esp_err_t ret = spi_device_transmit(spi, &trans);
+        if (ret == ESP_OK) {
+            bytes_read += chunk;
+        } else {
+            ESP_LOGE(TAG, "SPI read error: %s", esp_err_to_name(ret));
+            free(image_data);
+            return 0;
+        }
+    }
+
+    ESP_LOGI(TAG, "Successfully read %u bytes from FIFO.",(unsigned int)bytes_read);
+
+    //process image
+    float rain_intensity = process_image(image_data);
+
+    //Free buffer
+    free(image_data);
     
     reset_camera_via_spi();
-    vTaskDelay(pdMS_TO_TICKS(1000)); 
+
+    return rain_intensity;
 }
+
 
 
 void setupCamera(void) {   
