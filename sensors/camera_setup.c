@@ -177,8 +177,11 @@ void setupSPI(void) {
     vTaskDelay(pdMS_TO_TICKS(100));
     write_spi(0x07, 0x00);  // Exit reset
     vTaskDelay(pdMS_TO_TICKS(100));
-    write_spi(0x03, read_spi(0x03) | 0x04);  // Set VSYNC active HIGH
-
+    uint8_t version = read_spi(ARDUCHIP_VERSION);
+    printf("\n\n\n\n\n");
+    ESP_LOGI(TAG, "ARDUCHIP VERSION: 0x%02X", version);
+    printf("\n\n\n\n\n");
+    vTaskDelay(pdMS_TO_TICKS(5000));
 }
 
 void debugSPI(void) {
@@ -224,6 +227,13 @@ void debugSPI(void) {
 
 void reset_camera_via_spi(void) {
     ESP_LOGI(TAG, "Starting SPI reset sequence for the camera...");
+    // Reset camera hardware
+    write_spi(GPIO_DIRECTION, 0x00);
+    write_spi(ARDUCHIP_GPIO_WRITE, 0x01);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    write_spi(ARDUCHIP_GPIO_WRITE, 0x00);
+    vTaskDelay(pdMS_TO_TICKS(100));
+
     write_spi(ARDUCHIP_FIFO, 0x20);  // Reset FIFO write pointer
     vTaskDelay(pdMS_TO_TICKS(50));
     write_spi(ARDUCHIP_FIFO, 0x10);  // Reset FIFO write pointer
@@ -242,31 +252,24 @@ void reset_camera_via_spi(void) {
 }
 
 void captureImage(void) {
-    // Reset camera hardware
-    write_spi(GPIO_DIRECTION, 0x00);
-    write_spi(ARDUCHIP_GPIO, 0x01);
-    vTaskDelay(pdMS_TO_TICKS(100));
-    write_spi(ARDUCHIP_GPIO, 0x00);
-    vTaskDelay(pdMS_TO_TICKS(100));
     reset_camera_via_spi();
-    //debugSPI();
+    debugSPI();
     
     // Start single frame capture
-    write_spi(ARDUCHIP_FRAMES, 0x00);
+    write_spi(ARDUCHIP_FRAMES, 0x00); // 0x00 + 1 FRAMES
     vTaskDelay(pdMS_TO_TICKS(100));
-    read_spi(ARDUCHIP_FRAMES);
-    write_spi(ARDUCHIP_FIFO, 0x01);
+    write_spi(ARDUCHIP_FIFO, FIFO_CLEAR_MASK); // CLEAR FIFO WRITE DONE FLAG
     vTaskDelay(pdMS_TO_TICKS(100));
-    write_spi(ARDUCHIP_FIFO, 0x02);
+    write_spi(ARDUCHIP_FIFO, FIFO_START_MASK); // START CAPTURE
     
     // Wait for capture complete
     ESP_LOGI(TAG, "Waiting for image capture...");
-    vTaskDelay(pdMS_TO_TICKS(5000));
+    vTaskDelay(pdMS_TO_TICKS(100));
     uint8_t status = 0;
     uint32_t timeout = 20;  // Increased timeout
     
     for (uint32_t i = 0; i < timeout; i++) {
-        status = read_spi(CAM_WR_FIFO_DONE);
+        status = read_spi(0x45);
         ESP_LOGI(TAG, "FIFO Status (0x41): 0x%02X", (unsigned int) status);
         
         if (status & 0x08) {
@@ -321,16 +324,11 @@ void captureImage(void) {
     }
     
     reset_camera_via_spi();
-        vTaskDelay(pdMS_TO_TICKS(1000)); 
+    vTaskDelay(pdMS_TO_TICKS(1000)); 
 }
 
 
 void setupCamera(void) {   
-    
-    setupSPI();
-    vTaskDelay(pdMS_TO_TICKS(100)); 
-    reset_camera_via_spi();
-    vTaskDelay(pdMS_TO_TICKS(100)); 
     setup_camera_I2C();
     vTaskDelay(pdMS_TO_TICKS(1000)); 
 }

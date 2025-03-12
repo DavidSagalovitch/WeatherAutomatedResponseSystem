@@ -14,6 +14,8 @@ volatile uint16_t whiper_speed_ms = 0;
 bool rain_detected = false;
 
 void sensors_run(void *pvParameters) {
+  setupSPI();
+  reset_camera_via_spi();
   setupI2C();
 
   i2cScanner();
@@ -27,6 +29,7 @@ void sensors_run(void *pvParameters) {
 
   //float distance;
   while (1) {
+    captureImage();
     /*
     captureImage();
     distance = read_distance();
@@ -34,7 +37,7 @@ void sensors_run(void *pvParameters) {
         printf("Measured Distance: %.2f cm\n", distance);
     }
     vTaskDelay(pdMS_TO_TICKS(500));  // Wait for 500ms
-    */
+    
     if (detect_water()) {
       printf("Water detected on windshield!\n");
       rain_detected = true;
@@ -55,4 +58,5 @@ void sensors_run(void *pvParameters) {
   }
   vTaskDelay(pdMS_TO_TICKS(100));  // Check every half second
   */
+  }
 }

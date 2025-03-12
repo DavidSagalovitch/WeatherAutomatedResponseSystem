@@ -8,6 +8,7 @@
 #define MISO_PIN 19      // Master In Slave Out GPIO
 
 // OV5642 Registers
+#define ARDUCHIP_VERSION        0x40  //ArduChip Version (Mini_5mp_plus: 0x73)
 #define ARDUCHIP_MODE      		0x02  //BUS Mode register
 #define ARDUCHIP_FRAMES			0x01  //FRAME control register, Bit[2:0] = Number of frames to be captured + 1
 
@@ -19,7 +20,8 @@
 #define SINGLE_FIFO_READ		0x3D  //Single FIFO read operation
 #define CAM_WR_FIFO_DONE        0x41  //Bit[3]: camera write FIFO done flag (0x08)
 
-#define ARDUCHIP_GPIO			0x06  //GPIO Write Register
+#define ARDUCHIP_GPIO_WRITE		0x06  //GPIO Write Register
+#define ARDUCHIP_GPIO_READ		0x45  //GPIO Write Register
 #define GPIO_DIRECTION			0x05  //GPIO Direction Register
 #define GPIO_RESET_MASK			0x01  //0 = Sensor reset,				1 = Sensor normal operation
 #define GPIO_PWDN_MASK			0x02  //0 = Sensor normal operation, 	1 = Sensor standby
@@ -34,5 +36,6 @@
 
 void setupCamera(void);
 void captureImage(void);
-
+void setupSPI(void);
+void reset_camera_via_spi(void);
 #endif // CAMERA_SETUP_H
