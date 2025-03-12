@@ -9,6 +9,7 @@
 
 volatile uint16_t whiper_speed_ms = 0;
 bool rain_detected = false;
+float rain_intensity = 0;
 
 void sensors_run(void *pvParameters) {
     setupI2C();
@@ -24,7 +25,8 @@ void sensors_run(void *pvParameters) {
 
     //float distance;
     while (1) {
-      captureImage();
+      rain_intensity = captureImage();
+      printf("rain intensity = %.2f", rain_intensity);
 
       /*
       distance = read_distance();

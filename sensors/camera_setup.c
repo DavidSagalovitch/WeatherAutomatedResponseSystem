@@ -3,6 +3,7 @@
 #include "esp_log.h"
 #include "driver/i2c.h"
 #include "ov5642_regs.h"
+#include "../image_processing/processImage.h"
 
 
 // SPI configuration
@@ -217,61 +218,54 @@ void reset_camera_via_spi(void) {
     ESP_LOGI(TAG, "Camera reset sequence via SPI completed.");
 }
 
-void captureImage(void) {
-    ESP_LOGI(TAG, "Capturing image from OV5642...");
+float captureImage(void) {
+    ESP_LOGI(TAG, "Starting image capture...");
 
+    // Reset and start sensor
     write_spi(0x06, 0x01);  // Assert sensor reset
     vTaskDelay(pdMS_TO_TICKS(200));
     write_spi(0x06, 0x00);  // Deassert sensor reset
     vTaskDelay(pdMS_TO_TICKS(200));
 
-    // Set GPIOs to control the sensor
-    write_spi(0x05, 0x07); 
-
     // Enable FIFO mode
+    write_spi(0x05, 0x07);
     write_spi(0x03, 0x10);
 
     // Reset FIFO
+    write_spi(0x04, 0x20);
     write_spi(0x04, 0x10);
     write_spi(0x04, 0x08);
     write_spi(0x04, 0x01);
 
     // Start capture
+    write_spi(0x01, 0x01);
     write_spi(0x04, 0x02);
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(500));
 
-    // Wait for completion
-    uint8_t status = 0;
-    for (int i = 0; i < 10; i++) {
-        status = read_spi(0x41);
-        if (status & 0x08) {
-            ESP_LOGI(TAG, "Image capture complete.");
-            break;
-        }
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
-
+    // Wait for capture completion
+    uint8_t status = read_spi(0x41);
     if (!(status & 0x08)) {
         ESP_LOGE(TAG, "Capture failed: FIFO not ready.");
-        return;
+        return 0;
     }
 
     // Read FIFO size
     uint32_t size = (read_spi(0x44) << 16) | (read_spi(0x43) << 8) | read_spi(0x42);
-    ESP_LOGI(TAG, "Captured image size: %u bytes", (unsigned int)size);
+    ESP_LOGI(TAG, "Captured image size: %u bytes",(unsigned int)size);
 
-    if (size == 0) {
-        ESP_LOGW(TAG, "FIFO is empty. No data to read.");
-        return;
+    if (size < 1000) {  
+        ESP_LOGE(TAG, "Invalid image size. Capture may have failed.");
+        return 0;
     }
 
-    // Read FIFO data
+    // Allocate memory for image
     uint8_t *image_data = (uint8_t *)malloc(size);
     if (!image_data) {
         ESP_LOGE(TAG, "Failed to allocate memory for image.");
-        return;
+        return 0;
     }
 
+    // Read FIFO data into buffer
     uint32_t bytes_read = 0;
     while (bytes_read < size) {
         uint32_t chunk = (size - bytes_read > 256) ? 256 : (size - bytes_read);
@@ -286,14 +280,21 @@ void captureImage(void) {
         } else {
             ESP_LOGE(TAG, "SPI read error: %s", esp_err_to_name(ret));
             free(image_data);
-            return;
+            return 0;
         }
     }
 
-    ESP_LOGI(TAG, "Image successfully read from FIFO.");
+    ESP_LOGI(TAG, "Successfully read %u bytes from FIFO.",(unsigned int)bytes_read);
 
+    //processimage
+    float rain_intensity = process_image(image_data);
+
+    // Free buffer
     free(image_data);
+    
     reset_camera_via_spi();
+
+    return rain_intensity;
 }
 
 

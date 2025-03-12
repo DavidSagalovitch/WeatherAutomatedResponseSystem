@@ -2,6 +2,6 @@
 #define CAMERA_SETUP_H
 
 void setupCamera(void);
-void captureImage(void);
+float captureImage(void);
 
 #endif // CAMERA_SETUP_H
