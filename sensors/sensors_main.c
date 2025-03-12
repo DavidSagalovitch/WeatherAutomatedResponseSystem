@@ -25,10 +25,23 @@ void sensors_run(void *pvParameters) {
   // Initialize SPI and set up the camera
   setupCamera();
 
-//float distance;
-while (1) {
-  rain_intensity = captureImage();
-  printf("rain intensity = %.2f", rain_intensity);
+  //float distance;
+  while (1) {
+    rain_intensity = captureImage();
+    printf("rain intensity = %.2f", rain_intensity);
+
+    if (detect_water()) {
+      printf("Water detected on windshield!\n");
+      rain_detected = true;
+      whiper_speed_ms = 1000;
+    } else {
+      printf("Windshield is dry.\n");
+      rain_detected = false;
+      whiper_speed_ms = 0;
+    }
+    vTaskDelay(pdMS_TO_TICKS(100));  // Check every half second
+  }
+  vTaskDelay(pdMS_TO_TICKS(500));  // Wait for 500ms
 
   if (detect_water()) {
     printf("Water detected on windshield!\n");
@@ -40,17 +53,4 @@ while (1) {
     whiper_speed_ms = 0;
   }
   vTaskDelay(pdMS_TO_TICKS(100));  // Check every half second
-}
-vTaskDelay(pdMS_TO_TICKS(500));  // Wait for 500ms
-
-if (detect_water()) {
-  printf("Water detected on windshield!\n");
-  rain_detected = true;
-  whiper_speed_ms = 1000;
-} else {
-  printf("Windshield is dry.\n");
-  rain_detected = false;
-  whiper_speed_ms = 0;
-}
-vTaskDelay(pdMS_TO_TICKS(100));  // Check every half second
 }
