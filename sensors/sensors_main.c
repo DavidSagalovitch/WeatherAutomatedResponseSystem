@@ -12,8 +12,6 @@ bool rain_detected = false;
 float rain_intensity = 0;
 
 void sensors_run(void *pvParameters) {
-  setupSPI();
-  reset_camera_via_spi();
   setupI2C();
 
   i2cScanner();

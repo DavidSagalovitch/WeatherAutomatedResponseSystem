@@ -321,5 +321,7 @@ float captureImage(void) {
 
 void setupCamera(void) {   
     setup_camera_I2C();
-    vTaskDelay(pdMS_TO_TICKS(1000)); 
+    vTaskDelay(pdMS_TO_TICKS(500)); 
+    setupSPI();
+    vTaskDelay(pdMS_TO_TICKS(500)); 
 }
